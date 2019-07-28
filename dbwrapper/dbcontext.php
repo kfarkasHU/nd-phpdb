@@ -28,9 +28,10 @@ class DatabaseContext extends DatabaseKernel {
 
         foreach($tables as $table) {
             $tableRows = parent::GetTableRows($table);
-            $mappedRows = $this->MapRowsToEntity($tableRows);
+            $primaryColName = parent::GetPrimaryColumnName($table);
+            $mappedRows = $this->MapRowsToEntity($tableRows, $primaryColName);
 
-            $entityHashItem = new EntityHash($table, $mappedRows);
+            $entityHashItem = new EntityHash($table, $mappedRows, $primaryColName);
 
             array_push(self::$_entityHash, $entityHashItem);
             
@@ -38,8 +39,6 @@ class DatabaseContext extends DatabaseKernel {
         }
     }
     private function ApplyVirtualDatabase() {
-        // emiatt kell majd a rowid a mysql felől!
-
         foreach(self::$_entityHash as $entityHash) {
             if(!$entityHash->HasChanges())
                 continue;
@@ -47,26 +46,31 @@ class DatabaseContext extends DatabaseKernel {
             foreach($entityHash->ToList() as $row) {
                 switch($row->EntityState) {
                     case EntityState::MODIFIED:
-                        parent::Update($entityHash->TableName(), $row);
+                        parent::Update($entityHash->TableName(), $row, $entityHash->PrimaryColumn());
+                        $row->EntityState = EntityState::UNMODIFIED;
+
                         break;
 
                     case EntityState::ADDED:
-                        parent::Insert($entityHash->TableName(), $row);
+                        parent::Insert($entityHash->TableName(), $row, $entityHash->PrimaryColumn());
+                        $row->EntityState = EntityState::UNMODIFIED;
+
                         break;
 
                     case EntityState::DELETED:
-                        parent::Delete($entityHash->TableName(), $row);
+                        parent::Delete($entityHash->TableName(), $row, $entityHash->PrimaryColumn());
+
                         break;
                 }
             }
         }
     }
 
-    private function MapRowsToEntity(array $rows) {
+    private function MapRowsToEntity(array $rows, $primaryColName) {
         $entities = array();
 
         foreach($rows as $row) {
-            $entity = new Entity($row, EntityState::UNMODIFIED);
+            $entity = new Entity($row, EntityState::UNMODIFIED, $row["$primaryColName"]);
 
             array_push($entities, $entity);
         }

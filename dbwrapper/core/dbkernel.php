@@ -1,66 +1,102 @@
 <?php
 
-require_once("/../dbconfig.php");
+require_once('dbhelper.php');
 
 class DatabaseKernel {
-    private $_cfg;
-    private $_connection;
+
+    protected $_dbHelper;
 
     public function __construct() {
-        $this->_cfg = DatabaseConfig::GetInstance();
-
-        $this->_connection = $this->_cfg->Connect();
+        $this->_dbHelper = new DbHelper();
     }
 
     protected function GetTables() {
-        $dbName = $this->_cfg->DatabaseName();
-        
-        $command = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA LIKE '$dbName'";
-        
-        $tables = $this->DoQueryAssoc($command);
-        $tableNames = array();
-
-        foreach($tables as $table) {
-            array_push($tableNames, $table["TABLE_NAME"]);
-        }
-
-        return $tableNames;
+        return $this->_dbHelper->GetTables();
     }
 
     protected function GetTableRows($tableName) {
         $command = "SELECT * FROM $tableName";
 
-        return $this->DoQueryAssoc($command);
+        return $this->_dbHelper->DoQueryAssoc($command);
     }
 
-    protected function Insert($tableName, $row) {
-
+    protected function GetPrimaryColumnName($tableName) {
+        return $this->_dbHelper->GetTablePrimaryKey($tableName);
     }
 
-    protected function Update($tableName, $row) {
+    protected function Insert($tableName, $row, $uniqueColName) {
+        $colsToInsert = "";
+        $valsToInsert = "";
 
-    }
+        $rowArray = (array)$row->Data;
 
-    protected function Delete($tableName, $row) {
+        $keys = array_keys($rowArray);
+        foreach($keys as $property) {
+            if($property == $uniqueColName)
+                continue;
 
-    }
+            if($colsToInsert !== "")
+                $colsToInsert .= ", ";
 
-    private function DoQuery($command) {
-        $query = mysqli_query($this->_connection, $command);
+            if($valsToInsert !== "")
+                $valsToInsert .= ", ";
 
-        return $query;
-    }
-
-    private function DoQueryAssoc($command) {
-        $query = $this->DoQuery($command);      
-
-        $returnValue = array();
-
-        while ($row = mysqli_fetch_assoc($query)) {
-            array_push($returnValue, $row);
+            $colsToInsert .= "$property";
+            $valsToInsert .= "'$rowArray[$property]'";
         }
 
-        return $returnValue;
+        $command = "";
+        $command .= "INSERT INTO $tableName (";      
+        $command .= $colsToInsert;
+        $command .= ") VALUES (";
+        $command .= $valsToInsert;
+        $command .= ")";
+
+        $this->_dbHelper->DoQuery($command);
+    }
+
+    protected function Update($tableName, $row, $uniqueColName) {
+        $colValToUpdate = "";
+
+        $rowArray = (array)$row->Data;
+
+        $keys = array_keys($rowArray);
+        foreach($keys as $property) {
+            if($property == $uniqueColName)
+                continue;
+
+            if($colValToUpdate !== "")
+                $colValToUpdate .= ", ";
+
+            $colValToUpdate .= "$property=";
+
+            if(!is_null($rowArray[$property])) {
+                $colValToUpdate .= "'$rowArray[$property]'";
+            }
+            else {
+                $colValToUpdate .= NULL;
+            }
+        }
+
+        $command = "";
+        $command .= "UPDATE $tableName SET ";      
+        $command .= $colValToUpdate;
+        $command .= " ";
+        $command .= "WHERE $uniqueColName=";
+        $command .= $rowArray[$uniqueColName];
+
+        $this->_dbHelper->DoQuery($command);
+    }
+
+    protected function Delete($tableName, $row, $uniqueColName) {
+        $rowArray = (array)$row->Data;
+
+        $command = "";
+        $command .= "DELETE FROM $tableName ";
+        $command .= "WHERE $uniqueColName=";
+        $command .= $rowArray[$uniqueColName];
+
+        $this->_dbHelper->DoQuery($command);
     }
 }
 

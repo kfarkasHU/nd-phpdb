@@ -66,8 +66,9 @@ class FindHelper {
     }
 
     private static function AddIfNotAdded(array $array, $item) {
-        if(!in_array($item, $array))
+        if(!in_array($item, $array)) {
             array_push($array, $item);
+        }
 
         return $array;
     }

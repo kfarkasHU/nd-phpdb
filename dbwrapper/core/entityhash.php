@@ -5,15 +5,17 @@ require_once("findhelper.php");
 
 class EntityHash {
 
-    public function __construct($tableName, $rows) {
+    public function __construct($tableName, $rows, $uniqueId) {
         $this->_tableName = $tableName;
         $this->_rows = $rows;
+        $this->_uniqueIdentifierColumnName = $uniqueId;
         $this->_hasChanges = false;
     }
 
     private $_tableName;
     private $_rows;
     private $_hasChanges;
+    private $_uniqueIdentifierColumnName;
 
     public function TableName() {
         return $this->_tableName;
@@ -21,6 +23,10 @@ class EntityHash {
 
     public function HasChanges() {
         return $this->_hasChanges;
+    }
+
+    public function PrimaryColumn() {
+        return $this->_uniqueIdentifierColumnName;
     }
 
     public function Add($object) {
@@ -70,7 +76,7 @@ class EntityHash {
         return $object instanceof Entity;
     }
     private function CreateNewEntity($object) {
-        $entity = new Entity($object, EntityState::ADDED);
+        $entity = new Entity($object, EntityState::ADDED, null);
 
         return $entity;
     }
